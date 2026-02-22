@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This **Event Booking & Refund System** is a web application designed to help **banquet halls** and **catering businesses** manage event bookings, payments, seat availability, and refunds. The system ensures that no event is double-booked and handles bookings and refunds atomically to maintain data integrity.
+This **Event Booking & Refund System** is a web application designed to help **banquet halls** manage event bookings, payments, availability, and refunds. The system ensures that no event is double-booked and handles bookings and refunds atomically to maintain data integrity.
 
 ### Key Features
 
