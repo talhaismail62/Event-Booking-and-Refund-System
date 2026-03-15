@@ -16,6 +16,9 @@ app.use(logger);
 // Routes
 app.use('/api/v1/halls', hallRoutes);
 
+const authRoutes = require('./routes/authroutes');
+
+app.use('/api/v1/auth', authRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
