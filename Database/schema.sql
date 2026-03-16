@@ -1,119 +1,150 @@
-create database eventbooking;
-use eventbooking;
-
-create table user (
-    id int primary key not null,
-    name varchar(100),
-    dob date,
-    contact varchar(100),
-    position varchar(50) not null
+-- 1. Users table (Ready for Phase 2 RBAC)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    dob DATE,
+    contact VARCHAR(100),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('customer', 'staff', 'admin')) 
 );
 
-create table hall (
-    id int primary key not null,
-    name varchar(50),
-    capacity int,
-    morningprice int check (morningprice > 0),
-    eveningprice int check (eveningprice > 0),
-    morningstatus boolean default false,
-    eveningstatus boolean default false
+-- 2. Halls table
+CREATE TABLE halls (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    capacity INT CHECK (capacity > 0),
+    morningprice INT CHECK (morningprice > 0),
+    eveningprice INT CHECK (eveningprice > 0)
 );
 
-create table pricing_rule (
-    id int primary key not null,
-    name varchar(50),
-    multiplier float not null
+-- 3. Pricing Rules
+CREATE TABLE pricing_rules (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    multiplier FLOAT NOT NULL
 );
 
-create table booking (
-    id int primary key not null,
-    user_id int not null,
-    hall_id int not null,
-    event_date date not null,
-    slot varchar(10) not null,
-    num_of_ppl int check (num_of_ppl > 0),
-    status varchar(50) default 'pending',
-    rule int not null,
-    foreign key (user_id) references user(id),
-    foreign key (hall_id) references hall(id),
-    foreign key (rule) references pricing_rule(id)
+-- 4. Bookings table (Double-booking protected)
+CREATE TABLE bookings (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id),
+    hall_id INT NOT NULL REFERENCES halls(id),
+    event_date DATE NOT NULL,
+    slot VARCHAR(10) NOT NULL CHECK (slot IN ('morning', 'evening')),
+    num_of_ppl INT CHECK (num_of_ppl > 0),
+    status VARCHAR(50) DEFAULT 'pending',
+    rule_id INT NOT NULL REFERENCES pricing_rules(id),
+    UNIQUE (hall_id, event_date, slot)
 );
 
-create table food_items (
-    id int primary key not null,
-    item_name varchar(100),
-    cost int,
-    quantity int,
-    booking_id int not null,
-    foreign key (booking_id) references booking(id)
+-- 5. Services & Junction Table
+CREATE TABLE services (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE,
+    price INT NOT NULL
 );
 
-create table payment (
-    id int primary key not null,
-    name varchar(50),
-    amount int not null,
-    status varchar(50) default 'pending',
-    payment_date date,
-    user_id int not null,
-    booking_id int not null,
-    foreign key (user_id) references user(id),
-    foreign key (booking_id) references booking(id)
+CREATE TABLE booking_services (
+    booking_id INT NOT NULL REFERENCES bookings(id),
+    service_id INT NOT NULL REFERENCES services(id),
+    PRIMARY KEY (booking_id, service_id)
 );
 
-create table service (
-    id int primary key not null,
-    name varchar(100) unique,
-    price int not null
+-- 6. Food Items & Junction Table
+CREATE TABLE food_items (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE,
+    unit_price INT NOT NULL
 );
 
-create table invoice (
-    id int primary key not null,
-    name varchar(50),
-    amount int not null,
-    invoice_date date,
-    booking_id int not null,
-    foreign key (booking_id) references booking(id)
+CREATE TABLE booking_food_items (
+    booking_id INT NOT NULL REFERENCES bookings(id),
+    food_item_id INT NOT NULL REFERENCES food_items(id),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    PRIMARY KEY (booking_id, food_item_id)
 );
 
-create table refunds (
-    id int primary key not null,
-    status varchar(100) default 'pending',
-    booking_date date not null,
-    created_at timestamp default current_timestamp,
-    booking_id int not null,
-    foreign key (booking_id) references booking(id)
+-- 7. Payments (Strengthened for transactions)
+CREATE TABLE payments (
+    id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL REFERENCES bookings(id),
+    user_id INT NOT NULL REFERENCES users(id),
+    amount INT NOT NULL CHECK (amount > 0),
+    payment_type VARCHAR(50) DEFAULT 'full',
+    payment_method VARCHAR(50) DEFAULT 'cash',
+    status VARCHAR(50) DEFAULT 'pending',
+    payment_date DATE DEFAULT CURRENT_DATE
 );
 
-create view booking_overview as
-select b.id as booking_id, u.name as user_name, h.name as hall_name, b.event_date as event_date, b.slot as time_slot, b.num_of_ppl as number_of_people, b.status as booking_status
-from booking b join user u on b.user_id = u.id join hall h on b.hall_id = h.id;
+-- 8. Invoices (Strengthened for billing)
+CREATE TABLE invoices (
+    id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL UNIQUE REFERENCES bookings(id),
+    invoice_date DATE DEFAULT CURRENT_DATE,
+    subtotal INT NOT NULL,
+    tax_amount INT DEFAULT 0,
+    total_amount INT NOT NULL,
+    paid_amount INT DEFAULT 0,
+    balance_due INT NOT NULL
+);
 
-create view pending_payments as select p.id as payment_id, u.name as user_name, h.name as hall_name, b.event_date as event_date, p.amount as payment_amount, p.status as payment_status
-from payment p join user u on p.user_id = u.id join booking b on p.booking_id = b.id join hall h on b.hall_id = h.id
-where p.status = 'pending';
+-- 9. Refunds
+CREATE TABLE refunds (
+    id SERIAL PRIMARY KEY,
+    booking_id INT NOT NULL UNIQUE REFERENCES bookings(id),
+    cancellation_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    days_before_event INT,
+    refund_percent INT CHECK (refund_percent >= 0 AND refund_percent <= 100),
+    refund_amount INT,
+    status VARCHAR(100) DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-delimiter $$
+-- 10. Views
+CREATE OR REPLACE VIEW booking_overview AS
+SELECT b.id AS booking_id,
+       u.name AS user_name,
+       h.name AS hall_name,
+       b.event_date AS event_date,
+       b.slot AS time_slot,
+       b.num_of_ppl AS number_of_people,
+       b.status AS booking_status
+FROM bookings b
+JOIN users u ON b.user_id = u.id
+JOIN halls h ON b.hall_id = h.id;
 
-create trigger set_payment_date before insert on payment for each row begin
-if new.payment_date is null then set new.payment_date = current_date;
-end if;
-end $$
+CREATE OR REPLACE VIEW pending_payments AS
+SELECT p.id AS payment_id,
+       u.name AS user_name,
+       h.name AS hall_name,
+       b.event_date AS event_date,
+       p.amount AS payment_amount,
+       p.status AS payment_status
+FROM payments p
+JOIN users u ON p.user_id = u.id
+JOIN bookings b ON p.booking_id = b.id
+JOIN halls h ON b.hall_id = h.id
+WHERE p.status = 'pending';
 
-delimiter ;
+-- 11. Triggers
+CREATE OR REPLACE FUNCTION set_payment_date_func()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.payment_date IS NULL THEN
+        NEW.payment_date = CURRENT_DATE;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-delimiter $$
+CREATE TRIGGER set_payment_date
+BEFORE INSERT ON payments
+FOR EACH ROW
+EXECUTE FUNCTION set_payment_date_func();
 
-create trigger update_availability after update on booking for each row begin
-if old.status != 'cancelled' and new.status = 'cancelled' then
-if new.slot = 'morning' then update hall set morningstatus = true where id = new.hall_id;
-elseif new.slot = 'evening' then update hall set eveningstatus = true where id = new.hall_id;
-end if;
-end if;
-end $$
-
-delimiter ;
-
-create index bookingusers on booking(user_id);
-create index bookingslots on booking(event_date, slot);
-create index bookingpayments on payment(booking_id);
-create index bookingrefunds on refunds(booking_id);
+-- 12. Indexes
+CREATE INDEX idx_bookings_user ON bookings(user_id);
+CREATE INDEX idx_bookings_date_slot ON bookings(event_date, slot);
+CREATE INDEX idx_payments_booking ON payments(booking_id);
+CREATE INDEX idx_refunds_booking ON refunds(booking_id);

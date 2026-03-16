@@ -4,7 +4,14 @@ const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res) => {
     const { name, email, password, role } = req.body;
+
+    console.log("Request Body:", req.body);
+
     try {
+        if (!password) {
+            return res.status(400).json({ error: 'Password required' });
+        }
+
         const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (userCheck.rows.length > 0) {
             return res.status(400).json({ error: 'User already exists' });
@@ -22,7 +29,7 @@ exports.register = async (req, res) => {
 
         res.status(201).json({ message: 'User registered successfully', user: newUser.rows[0] });
     } catch (err) {
-        console.error(err.message);
+        console.error("Registration Error Details:", err.message);
         res.status(500).json({ error: 'Server error during registration' });
     }
 };
