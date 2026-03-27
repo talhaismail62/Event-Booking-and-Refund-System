@@ -1,4 +1,4 @@
--- 1. Users table (Ready for Phase 2 RBAC)
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100),
@@ -9,7 +9,6 @@ CREATE TABLE users (
     role VARCHAR(50) NOT NULL CHECK (role IN ('customer', 'staff', 'admin')) 
 );
 
--- 2. Halls table
 CREATE TABLE halls (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
@@ -18,14 +17,12 @@ CREATE TABLE halls (
     eveningprice INT CHECK (eveningprice > 0)
 );
 
--- 3. Pricing Rules
 CREATE TABLE pricing_rules (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50),
     multiplier FLOAT NOT NULL
 );
 
--- 4. Bookings table (Double-booking protected)
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL REFERENCES users(id),
@@ -38,7 +35,6 @@ CREATE TABLE bookings (
     UNIQUE (hall_id, event_date, slot)
 );
 
--- 5. Services & Junction Table
 CREATE TABLE services (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE,
@@ -51,7 +47,6 @@ CREATE TABLE booking_services (
     PRIMARY KEY (booking_id, service_id)
 );
 
--- 6. Food Items & Junction Table
 CREATE TABLE food_items (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE,
@@ -65,7 +60,6 @@ CREATE TABLE booking_food_items (
     PRIMARY KEY (booking_id, food_item_id)
 );
 
--- 7. Payments (Strengthened for transactions)
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL REFERENCES bookings(id),
@@ -77,7 +71,6 @@ CREATE TABLE payments (
     payment_date DATE DEFAULT CURRENT_DATE
 );
 
--- 8. Invoices (Strengthened for billing)
 CREATE TABLE invoices (
     id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL UNIQUE REFERENCES bookings(id),
@@ -89,7 +82,6 @@ CREATE TABLE invoices (
     balance_due INT NOT NULL
 );
 
--- 9. Refunds
 CREATE TABLE refunds (
     id SERIAL PRIMARY KEY,
     booking_id INT NOT NULL UNIQUE REFERENCES bookings(id),
@@ -101,7 +93,6 @@ CREATE TABLE refunds (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 10. Views
 CREATE OR REPLACE VIEW booking_overview AS
 SELECT b.id AS booking_id,
        u.name AS user_name,
@@ -127,7 +118,6 @@ JOIN bookings b ON p.booking_id = b.id
 JOIN halls h ON b.hall_id = h.id
 WHERE p.status = 'pending';
 
--- 11. Triggers
 CREATE OR REPLACE FUNCTION set_payment_date_func()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -143,7 +133,6 @@ BEFORE INSERT ON payments
 FOR EACH ROW
 EXECUTE FUNCTION set_payment_date_func();
 
--- 12. Indexes
 CREATE INDEX idx_bookings_user ON bookings(user_id);
 CREATE INDEX idx_bookings_date_slot ON bookings(event_date, slot);
 CREATE INDEX idx_payments_booking ON payments(booking_id);

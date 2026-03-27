@@ -85,8 +85,20 @@ exports.getMyBookings = async (req, res) => {
     const user_id = req.user.id;
 
     try {
+        // SQL WIZARD FIX: Automatically calculating total_amount based on the slot!
         const query = `
-            SELECT b.id AS booking_id, h.name AS hall_name, b.event_date, b.slot, b.status, b.expires_at
+            SELECT 
+                b.id AS booking_id, 
+                h.name AS hall_name, 
+                b.event_date, 
+                b.slot, 
+                b.status, 
+                b.expires_at,
+                CASE 
+                    WHEN b.slot = 'morning' THEN h.morningprice
+                    WHEN b.slot = 'evening' THEN h.eveningprice
+                    ELSE 0
+                END AS total_amount
             FROM bookings b
             JOIN halls h ON b.hall_id = h.id
             WHERE b.user_id = $1

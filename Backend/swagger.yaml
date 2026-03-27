@@ -1,0 +1,221 @@
+openapi: 3.0.0
+info:
+  title: Event Booking and Refund System
+  description: >
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local Development Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          example: "Talha"
+        email:
+          type: string
+          example: "customer@example.com"
+        password:
+          type: string
+          format: password
+          example: "SecurePass123!"
+        contact:
+          type: string
+          example: "0300-1234567"
+        role:
+          type: string
+          enum: [customer, staff, admin]
+          example: "customer"
+          
+    Hall:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Crystal Banquet"
+        capacity:
+          type: integer
+          example: 800
+        morningprice:
+          type: integer
+          example: 20000
+        eveningprice:
+          type: integer
+          example: 30000
+
+    BookingRequest:
+      type: object
+      required:
+        - hall_id
+        - event_date
+        - slot
+      properties:
+        hall_id:
+          type: integer
+          example: 1
+        event_date:
+          type: string
+          format: date
+          example: "2026-05-15"
+        slot:
+          type: string
+          enum: [morning, evening]
+          example: "evening"
+        num_of_ppl:
+          type: integer
+          example: 250
+
+paths:
+  /users/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User registered successfully
+        '500':
+          description: Server error
+
+  /users/login:
+    post:
+      tags: [Auth]
+      summary: Login and receive JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: "admin@example.com"
+                password:
+                  type: string
+                  example: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /users/profile:
+    get:
+      tags: [Users]
+      summary: Get logged-in user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile data
+    patch:
+      tags: [Users]
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                contact:
+                  type: string
+      responses:
+        '200':
+          description: Updated
+
+  /halls:
+    get:
+      tags: [Halls]
+      summary: View all halls
+      responses:
+        '200':
+          description: List of halls
+    post:
+      tags: [Halls]
+      summary: Create hall (Admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hall'
+      responses:
+        '201':
+          description: Created
+
+  /bookings:
+    post:
+      tags: [Bookings]
+      summary: Create booking
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+      responses:
+        '201':
+          description: Success
+
+  /bookings/all:
+    get:
+      tags: [Bookings]
+      summary: View all bookings (Admin/Staff)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: All bookings
+
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: View all invoices (Admin/Staff)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Invoice list
+
+  /invoices/{bookingId}/generate:
+    post:
+      tags: [Invoices]
+      summary: Generate Invoice
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
