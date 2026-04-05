@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-exports.generateInvoice = async (req, res) => {
+exports.generateInvoice = async (req, res) => { 
     const { bookingId } = req.params;
 
     try {
@@ -95,13 +95,13 @@ exports.getInvoice = async (req, res) => {
 exports.getAllInvoices = async (req, res) => {
     try {
         const query = `
-            SELECT i.id as invoice_id, i.total_amount, i.balance_due, i.created_at,
-                   b.event_date, u.name AS customer_name, u.contact
-            FROM invoices i
-            JOIN bookings b ON i.booking_id = b.id
-            JOIN users u ON b.user_id = u.id
-            ORDER BY i.created_at DESC;
-        `;
+    SELECT i.id as invoice_id, i.total_amount, i.balance_due, 
+           b.event_date, u.name AS customer_name, u.contact
+    FROM invoices i
+    JOIN bookings b ON i.booking_id = b.id
+    JOIN users u ON b.user_id = u.id
+    ORDER BY i.id DESC; 
+`;
         const result = await db.query(query);
         
         res.status(200).json({ 
